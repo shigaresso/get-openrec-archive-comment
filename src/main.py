@@ -13,7 +13,8 @@ def main():
     need_parameter = get_need_parameter(archieve_url)
     create_csv(need_parameter["movie_id"])
     start_time = create_next_time(need_parameter["start_time"])
-    save_comment_page(start_time, need_parameter["movie_id"])
+    # 最初の接続時はコメントがないので第三引数には空配列を渡す
+    save_comment_page(start_time, need_parameter["movie_id"], [])
     print("コメント取得を終了しました")
 
 
@@ -42,30 +43,43 @@ def get_need_parameter(archive_url):
 
 
 # コメントを保存する一連の流れ 再帰関数にする
-def save_comment_page(start_time, movie_id):
+def save_comment_page(start_time, movie_id, current_time_past_added_jsons):
     # 次のコメントページも取得しやすいように URL は次の 3 つを組み合わせる
     server_url = [f"https://public.openrec.tv/external/api/v5/movies/{movie_id}/chats?from_created_at=", ".000Z&is_including_system_message=false"]
     connect_url = f"{server_url[0]}{start_time}{server_url[-1]}"
     # コメントページの取得
     response = requests.get(connect_url)
     # JSON 文字列を Python のオブジェクトとして使えるようにする
-    comment_json = json.loads(response.text)
+    comment_jsons = json.loads(response.text)
+
+    # 前回のコメントと今回のコメントで被っていないコメントのみを抽出する
+    unique_comments = []
+    for comment_json in comment_jsons:
+        # 前回の配列と比較して入ってないものがあれば配列に追加
+        if comment_json not in current_time_past_added_jsons:
+            unique_comments.append(comment_json)
 
     # ここでコメントを CSV 形式で保存する処理
-    write_csv(movie_id, comment_json)
+    write_csv(movie_id, unique_comments)
 
     # 次に保存するコメントページの URL の一部が戻り値
-    next_time = create_next_time(comment_json[-1]["posted_at"])
+    next_time = create_next_time(comment_jsons[-1]["posted_at"])
     print(next_time)
 
     # 今回のページの最初のコメント時間と、次回のページの最初のコメント時間が同じ場合は配信が終了しているとみなす
     if (next_time == start_time):
         return
 
+    # 既に CSV ファイルに入っているコメントの配列を作成する
+    added_comments = []
+    for comment_json in comment_jsons:
+        if comment_json["posted_at"] == comment_jsons[-1]["posted_at"]:
+            added_comments.append(comment_json)
+
     # 1 秒待たせる
     time.sleep(1)
     # 次のコメントを取得する
-    save_comment_page(next_time, movie_id)
+    save_comment_page(next_time, movie_id, added_comments)
 
 
 # コメントを CSV ファイルに書き込み
