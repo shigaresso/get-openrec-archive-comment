@@ -12,10 +12,21 @@ def main():
     archieve_url = sys.argv[1]
     need_parameter = get_need_parameter(archieve_url)
     create_csv(need_parameter["movie_id"])
-    start_time = create_next_time(need_parameter["start_time"])
+    live_start_time = create_next_time(need_parameter["start_time"])
+
+    # コメント取得開始時間
+    program_start_time = time.time()
     # 最初の接続時はコメントがないので第三引数には空配列を渡す
-    save_comment_page(start_time, need_parameter["movie_id"], [])
-    print("コメント取得を終了しました")
+    save_comment_page(live_start_time, need_parameter["movie_id"], [])
+
+    # コメント取得に経過した時間
+    run_time = time.time() - program_start_time
+
+    # コメント取得に何分:何秒掛かったか
+    minute = run_time // 60
+    second = run_time % 60
+    # 数値を文字列型に変換し、.zfill(2)を使うことで 1 桁の時に先頭に 0 を加えた 2 桁の文字列にできる
+    print(f"コメント取得に費やした時間: {str(minute).zfill(2)}:{str(second).zfill(2)}")
 
 
 def create_csv(movie_id):
@@ -44,20 +55,16 @@ def get_need_parameter(archive_url):
 
 # コメントを保存する一連の流れ 再帰関数にする
 def save_comment_page(start_time, movie_id, current_time_past_added_jsons):
-    # 次のコメントページも取得しやすいように URL は次の 3 つを組み合わせる
-    server_url = [f"https://public.openrec.tv/external/api/v5/movies/{movie_id}/chats?from_created_at=", ".000Z&is_including_system_message=false"]
-    connect_url = f"{server_url[0]}{start_time}{server_url[-1]}"
+    # ユーザーエージェントを追記していないと弾かれる可能性がある
+    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36"
+    headers = {"user-agent": user_agent} 
     # コメントページの取得
-    response = requests.get(connect_url)
+    response = requests.get(create_connect_url(start_time, movie_id), headers=headers)
     # JSON 文字列を Python のオブジェクトとして使えるようにする
     comment_jsons = json.loads(response.text)
 
-    # 前回のコメントと今回のコメントで被っていないコメントのみを抽出する
-    unique_comments = []
-    for comment_json in comment_jsons:
-        # 前回の配列と比較して入ってないものがあれば配列に追加
-        if comment_json not in current_time_past_added_jsons:
-            unique_comments.append(comment_json)
+    # 保存する必要がある差分コメント
+    unique_comments = save_unique_comments(comment_jsons, current_time_past_added_jsons)
 
     # ここでコメントを CSV 形式で保存する処理
     write_csv(movie_id, unique_comments)
@@ -70,16 +77,28 @@ def save_comment_page(start_time, movie_id, current_time_past_added_jsons):
     if (next_time == start_time):
         return
 
-    # 既に CSV ファイルに入っているコメントの配列を作成する
-    added_comments = []
-    for comment_json in comment_jsons:
-        if comment_json["posted_at"] == comment_jsons[-1]["posted_at"]:
-            added_comments.append(comment_json)
-
+    # 既に追加したコメント 次のページで一度追加したコメントを 2 回保存しないために用いる
+    already_added_comments = saved_comments(comment_jsons)
     # 1 秒待たせる
     time.sleep(1)
     # 次のコメントを取得する
-    save_comment_page(next_time, movie_id, added_comments)
+    save_comment_page(next_time, movie_id, already_added_comments)
+
+# 次に接続するページの URL を作成する
+def create_connect_url(start_time, movie_id):
+    server_url = [f"https://public.openrec.tv/external/api/v5/movies/{movie_id}/chats?from_created_at=", ".000Z&is_including_system_message=false"]
+    return f"{server_url[0]}{start_time}{server_url[-1]}"
+
+
+# 差分のコメント配列を作成する
+def save_unique_comments(comment_jsons, past_added_jsons):
+    # 前回のコメントと今回のコメントで被っていないコメントのみを抽出する
+    unique_comments = []
+    for comment_json in comment_jsons:
+        # 前回の配列と比較して入ってないものがあれば配列に追加
+        if comment_json not in past_added_jsons:
+            unique_comments.append(comment_json)
+    return unique_comments
 
 
 # コメントを CSV ファイルに書き込み
@@ -119,6 +138,15 @@ def convert_time(time_array):
         # 1日前になるので日付をずらす
         day = f"{day[0]}{int(day[1])-1}"
         return [year, month, day, hour, minute, second]
+
+
+# 既に CSV ファイルに入っているコメントの配列を作成する
+def saved_comments(comment_jsons):
+    added_comments = []
+    for comment_json in comment_jsons:
+        if comment_json["posted_at"] == comment_jsons[-1]["posted_at"]:
+            added_comments.append(comment_json)
+    return added_comments
 
 
 main()
