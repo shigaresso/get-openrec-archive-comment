@@ -1,3 +1,4 @@
+import math
 import re
 import time
 import requests
@@ -25,8 +26,10 @@ def main():
     # コメント取得に何分:何秒掛かったか
     minute = run_time // 60
     second = run_time % 60
-    # 数値を文字列型に変換し、.zfill(2)を使うことで 1 桁の時に先頭に 0 を加えた 2 桁の文字列にできる
-    print(f"コメント取得に費やした時間: {str(minute).zfill(2)}:{str(second).zfill(2)}")
+    # 時間を 2 桁でない場合は 0 で埋め、文字列にする
+    minute_string = str(math.floor(minute)).rjust(2, "0")
+    second_string = str(math.floor(second)).rjust(2, "0")
+    print(f"コメント取得に費やした時間: {minute_string}:{second_string}")
 
 
 def create_csv(movie_id):
@@ -83,6 +86,7 @@ def save_comment_page(start_time, movie_id, current_time_past_added_jsons):
     time.sleep(1)
     # 次のコメントを取得する
     save_comment_page(next_time, movie_id, already_added_comments)
+
 
 # 次に接続するページの URL を作成する
 def create_connect_url(start_time, movie_id):
