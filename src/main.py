@@ -20,16 +20,7 @@ def main():
     # 最初の接続時はコメントがないので第三引数には空配列を渡す
     save_comment_page(live_start_time, need_parameter["movie_id"], [])
 
-    # コメント取得に経過した時間
-    run_time = time.time() - program_start_time
-
-    # コメント取得に何分:何秒掛かったか
-    minute = run_time // 60
-    second = run_time % 60
-    # 時間を 2 桁でない場合は 0 で埋め、文字列にする
-    minute_string = str(math.floor(minute)).rjust(2, "0")
-    second_string = str(math.floor(second)).rjust(2, "0")
-    print(f"コメント取得に費やした時間: {minute_string}:{second_string}")
+    end_time(program_start_time)
 
 
 def create_csv(movie_id):
@@ -106,9 +97,9 @@ def save_unique_comments(comment_jsons, past_added_jsons):
 
 
 # コメントを CSV ファイルに書き込み
-def write_csv(movie_id, comment_json):
+def write_csv(movie_id, comment_jsons):
     with open(f"./{movie_id}.csv", "a", encoding='utf-8') as f:
-        for json in comment_json:
+        for json in comment_jsons:
             csv.writer(f).writerow([json["posted_at"], json["id"], json["message"]])
 
 
@@ -152,5 +143,18 @@ def saved_comments(comment_jsons):
             added_comments.append(comment_json)
     return added_comments
 
+
+# コメント取得に費やした時間の作成
+def end_time(program_start_time):
+    # コメント取得に経過した時間
+    run_time = time.time() - program_start_time
+
+    # コメント取得に何分:何秒掛かったかへの変換
+    minute = run_time // 60
+    second = run_time % 60
+    # 時間を 2 桁でない場合は 0 で埋め、文字列にする
+    minute_string = str(math.floor(minute)).rjust(2, "0")
+    second_string = str(math.floor(second)).rjust(2, "0")
+    print(f"コメント取得に費やした時間: {minute_string}:{second_string}")
 
 main()
