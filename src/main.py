@@ -22,8 +22,8 @@ def main():
     program_start_time = time.time()
     # 最初の接続時はコメントがないので第三引数には空配列を渡す
     save_comment_page(live_start_time, need_parameter["movie_id"], [])
-
-    display_execution_time(program_start_time)
+    program_end_time = time.time()
+    display_execution_time(program_start_time, program_end_time)
 
 
 # コメントを保存する一連の流れ 再帰関数にする

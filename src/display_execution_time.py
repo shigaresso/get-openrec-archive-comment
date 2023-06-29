@@ -1,15 +1,15 @@
 import math
-import time
 
 
-def display_execution_time(program_start_time):
+def display_execution_time(start_time, end_time):
     """全コメントの取得に費やした時間を出力
 
     Args:
-        program_start_time: プログラムが開始された時間
+        start_time: コメント取得を開始した時間
+        end_time: コメント取得が終了した時間
     """
     # コメント取得に経過した時間
-    run_time = time.time() - program_start_time
+    run_time = end_time - start_time
 
     # コメント取得に何分:何秒掛かったかへの変換
     minute = run_time // 60
